@@ -267,23 +267,6 @@
     gap: 0.5rem;
   }
 
-  .copy-btn {
-    background: transparent;
-    color: var(--accent-warn);
-    border: 1px solid var(--accent-warn);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 0.4rem 0.9rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-
-  .copy-btn:hover { background: var(--accent-warn); color: #0f1117; opacity: 1; }
-
   .clear-log-btn {
     background: transparent;
     color: var(--muted);
@@ -419,29 +402,7 @@
     margin-bottom: 0.15rem;
   }
 
-  /* copy toast */
-  .toast {
-    position: fixed;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%) translateY(10px);
-    background: var(--accent-warn);
-    color: #0f1117;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.78rem;
-    font-weight: 600;
-    padding: 0.55rem 1.2rem;
-    border-radius: 5px;
-    opacity: 0;
-    transition: opacity 0.2s, transform 0.2s;
-    pointer-events: none;
-    z-index: 999;
-  }
 
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
 </style>
 </head>
 <body>
@@ -483,7 +444,6 @@
     <div class="log-header">
       <div class="log-title">Test Log</div>
       <div class="log-actions">
-        <button class="copy-btn" onclick="copyLog()">Copy Log for Claude</button>
         <button class="clear-log-btn" onclick="clearLog()">Clear Log</button>
       </div>
     </div>
@@ -491,7 +451,6 @@
   </div>
 </div>
 
-<div class="toast" id="toast">Copied to clipboard!</div>
 
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -714,62 +673,11 @@ function clearLog() {
   document.getElementById('logSection').style.display = 'none';
 }
 
-function copyLog() {
-  if (!testLog.length) return;
-
-  const lines = ['=== CHILD SAFETY DETECTOR — TEST LOG ===', ''];
-
-  // Summary
-  const total   = testLog.length;
-  const marked  = testLog.filter(e => e.correct !== null).length;
-  const correct = testLog.filter(e => e.correct === true).length;
-  const wrong   = testLog.filter(e => e.correct === false).length;
-  lines.push(`Total tests: ${total} | Marked: ${marked} | Correct: ${correct} | Wrong: ${wrong}`);
-  lines.push('');
-
-  // Wrong ones first (most important for training)
-  const wrongEntries = [...testLog].reverse().filter(e => e.correct === false);
-  const correctEntries = [...testLog].reverse().filter(e => e.correct === true);
-  const unmarkedEntries = [...testLog].reverse().filter(e => e.correct === null);
-
-  if (wrongEntries.length) {
-    lines.push('── WRONG DETECTIONS (need prompt update) ──');
-    wrongEntries.forEach(e => formatEntry(e, lines));
-    lines.push('');
-  }
-
-  if (correctEntries.length) {
-    lines.push('── CORRECT DETECTIONS ──');
-    correctEntries.forEach(e => formatEntry(e, lines));
-    lines.push('');
-  }
-
-  if (unmarkedEntries.length) {
-    lines.push('── NOT YET MARKED ──');
-    unmarkedEntries.forEach(e => formatEntry(e, lines));
-    lines.push('');
-  }
-
-  navigator.clipboard.writeText(lines.join('\n')).then(() => showToast());
-}
-
-function formatEntry(e, lines) {
-  lines.push(`#${e.id} | Verdict: ${e.verdict} | Marked: ${e.correct === null ? 'Not marked' : e.correct ? 'CORRECT' : 'WRONG'}`);
-  lines.push(`Message: ${e.message}`);
-  lines.push(`Reason:  ${e.reason}`);
-  if (e.flags.length) lines.push(`Flags:   ${e.flags.join(', ')}`);
-  lines.push('');
-}
 
 function escHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function showToast() {
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
-}
 
 // ─── PATCH ANALYZE TO PASS MESSAGE ───────────────────────────────────────────
 // (override displayResult call to include the message)
