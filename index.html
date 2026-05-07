@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Child Safety DM Detector</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --border: #2a2f3f;
+    --accent-safe: #00e676;
+    --accent-danger: #ff1744;
+    --accent-warn: #ffab00;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --label: #9ca3af;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 680px;
+  }
+
+  header {
+    margin-bottom: 2.5rem;
+    border-left: 3px solid var(--accent-warn);
+    padding-left: 1rem;
+  }
+
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-warn);
+  }
+
+  header p {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.8rem;
+  }
+
+  label {
+    display: block;
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--label);
+    margin-bottom: 0.6rem;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    padding: 0.9rem 1rem;
+    resize: vertical;
+    min-height: 120px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  textarea:focus {
+    border-color: var(--accent-warn);
+  }
+
+  textarea::placeholder {
+    color: var(--muted);
+  }
+
+  .controls {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    align-items: center;
+  }
+
+  button {
+    background: var(--accent-warn);
+    color: #0f1117;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 5px;
+    padding: 0.7rem 1.6rem;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  button:hover { opacity: 0.85; }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .clear-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 0.65rem 1rem;
+  }
+
+  .clear-btn:hover { color: var(--text); border-color: var(--muted); opacity: 1; }
+
+  /* Result */
+  .result-area {
+    margin-top: 1.5rem;
+    display: none;
+  }
+
+  .result-box {
+    border-radius: 6px;
+    padding: 1.2rem 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid transparent;
+    animation: fadeIn 0.25s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-box.safe {
+    background: rgba(0, 230, 118, 0.07);
+    border-color: rgba(0, 230, 118, 0.25);
+  }
+
+  .result-box.danger {
+    background: rgba(255, 23, 68, 0.07);
+    border-color: rgba(255, 23, 68, 0.25);
+  }
+
+  .result-letter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 2.8rem;
+    font-weight: 600;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .safe .result-letter  { color: var(--accent-safe); }
+  .danger .result-letter { color: var(--accent-danger); }
+
+  .result-info { flex: 1; }
+
+  .result-verdict {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .safe .result-verdict  { color: var(--accent-safe); }
+  .danger .result-verdict { color: var(--accent-danger); }
+
+  .result-reason {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Spinner */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-warn);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-height: 24px;
+  }
+
+  /* Flags section */
+  .flags {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .flag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 3px;
+    background: rgba(255, 23, 68, 0.12);
+    color: var(--accent-danger);
+    border: 1px solid rgba(255, 23, 68, 0.2);
+  }
+
+  /* ── Log Panel ── */
+  .log-section {
+    margin-top: 2rem;
+    display: none;
+  }
+
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+  }
+
+  .log-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--label);
+    border-left: 3px solid var(--border);
+    padding-left: 0.7rem;
+  }
+
+  .log-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .copy-btn {
+    background: transparent;
+    color: var(--accent-warn);
+    border: 1px solid var(--accent-warn);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .copy-btn:hover { background: var(--accent-warn); color: #0f1117; opacity: 1; }
+
+  .clear-log-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  .clear-log-btn:hover { color: var(--text); opacity: 1; }
+
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .log-entry {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    display: grid;
+    grid-template-columns: 2.2rem 1fr auto;
+    gap: 0.6rem 0.8rem;
+    align-items: start;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .log-entry.wrong {
+    border-left: 3px solid var(--accent-danger);
+  }
+
+  .log-verdict-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .log-verdict-badge.y { color: var(--accent-safe); }
+  .log-verdict-badge.n { color: var(--accent-danger); }
+
+  .log-body { min-width: 0; }
+
+  .log-msg {
+    font-size: 0.82rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.2rem;
+  }
+
+  .log-reason {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .log-flags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+  }
+
+  .log-flag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    background: rgba(255, 23, 68, 0.1);
+    color: var(--accent-danger);
+    border: 1px solid rgba(255, 23, 68, 0.18);
+  }
+
+  .log-correct-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+
+  .correct-btn, .wrong-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0.55rem;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .correct-btn {
+    background: rgba(0,230,118,0.08);
+    color: var(--accent-safe);
+    border-color: rgba(0,230,118,0.2);
+  }
+
+  .correct-btn:hover, .correct-btn.active {
+    background: var(--accent-safe);
+    color: #0f1117;
+    opacity: 1;
+  }
+
+  .wrong-btn {
+    background: rgba(255,23,68,0.08);
+    color: var(--accent-danger);
+    border-color: rgba(255,23,68,0.2);
+  }
+
+  .wrong-btn:hover, .wrong-btn.active {
+    background: var(--accent-danger);
+    color: #fff;
+    opacity: 1;
+  }
+
+  .log-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-bottom: 0.15rem;
+  }
+
+  /* copy toast */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--accent-warn);
+    color: #0f1117;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.55rem 1.2rem;
+    border-radius: 5px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Child Safety · DM Detector</h1>
+    <p>// Flags inappropriate or predatory messages in children's DMs</p>
+  </header>
+
+  <div class="card">
+    <label for="msgInput">Message to analyze</label>
+    <textarea id="msgInput" placeholder="Paste or type a direct message here…"></textarea>
+
+    <div class="controls">
+      <button id="analyzeBtn" onclick="analyze()">Analyze</button>
+      <button class="clear-btn" onclick="clearAll()">Clear</button>
+    </div>
+
+    <div class="status-row">
+      <div class="spinner" id="spinner"></div>
+      <span id="statusText"></span>
+    </div>
+
+    <div class="result-area" id="resultArea">
+      <div class="result-box" id="resultBox">
+        <div class="result-letter" id="resultLetter"></div>
+        <div class="result-info">
+          <div class="result-verdict" id="resultVerdict"></div>
+          <div class="result-reason" id="resultReason"></div>
+          <div class="flags" id="resultFlags"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Log Panel ── -->
+  <div class="log-section" id="logSection">
+    <div class="log-header">
+      <div class="log-title">Test Log</div>
+      <div class="log-actions">
+        <button class="copy-btn" onclick="copyLog()">Copy Log for Claude</button>
+        <button class="clear-log-btn" onclick="clearLog()">Clear Log</button>
+      </div>
+    </div>
+    <div class="log-list" id="logList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard!</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const testLog = []; // { id, message, verdict, reason, flags, correct: null|true|false }
+let entryCounter = 0;
+
+// ─── SYSTEM PROMPT ────────────────────────────────────────────────────────────
+// This prompt is the core of the detection logic.
+// It will be refined iteratively based on training feedback.
+
+const SYSTEM_PROMPT = `You are a child safety content moderation system for a kids' messaging app. Your ONLY job is to analyze a direct message and decide whether it is CLEAN or UNSAFE.
+
+RESPOND ONLY WITH VALID JSON. No preamble, no explanation outside the JSON.
+
+Output format:
+{
+  "verdict": "Y" or "N",
+  "reason": "short explanation (1-2 sentences max)",
+  "flags": ["list", "of", "triggered", "categories"]
+}
+
+Where:
+- "Y" = Clean / Safe (no issues found)
+- "N" = Not clean / Unsafe (issues detected)
+
+──────────────────────────────────────────────────────────────────────────
+FLAG CATEGORIES — trigger "N" if ANY of these are present:
+──────────────────────────────────────────────────────────────────────────
+
+GROOMING TACTICS:
+- Asking to keep the conversation secret from parents/adults
+- Asking the child to move to another platform (WhatsApp, Snapchat, Discord, email, phone, etc.)
+- Excessive flattery or compliments about the child's looks or maturity
+- Attempting to isolate the child ("you can only tell me", "don't tell your friends")
+- Claiming to be the child's special friend, protector, or confidant
+- Gradual boundary-pushing (testing how the child reacts to slightly inappropriate topics)
+- Gift-offering, money offers, or game item offers in exchange for communication or photos
+- Asking for or sending photos, especially selfies, body photos, or "what do you look like"
+- Questions about the child's schedule, home address, school, or physical location
+- Asking to meet in person, especially secretly
+
+SEXUAL CONTENT:
+- Any sexual language, innuendo, or explicit content directed at or near a child
+- Asking about or referencing the child's body in any inappropriate way
+- Sending or requesting sexual images, links to adult content, or inappropriate media
+- Age-inappropriate romantic or sexual advances
+- References to sexual acts, anatomy in an inappropriate context
+
+IDENTITY DECEPTION:
+- Adults pretending to be children or teenagers
+- Fake identity claims that seem designed to build trust ("I'm 14 too")
+- Claims that seem inconsistent or designed to manipulate
+
+INTIMIDATION / COERCION:
+- Threats if the child speaks to parents or tells someone
+- Emotional manipulation ("if you tell anyone, I'll be in trouble and it's your fault")
+- Blackmail
+
+SELF-HARM ENCOURAGEMENT:
+- Encouraging the child to harm themselves or others
+- Encouraging dangerous activities, substances, or behaviors
+- Encouraging the child to run away from home
+
+HATE / EXTREME CONTENT:
+- Racist, homophobic, or otherwise hateful language targeting the child or others
+- Extremist ideology being introduced to the child
+
+──────────────────────────────────────────────────────────────────────────
+IMPORTANT NUANCES:
+──────────────────────────────────────────────────────────────────────────
+- Normal friendly conversation between children IS clean (Y): talking about games, school, hobbies, jokes, memes, friends, homework, etc.
+- Mild rudeness or arguing between kids is NOT automatically unsafe — only flag if it crosses into harassment, threats, or the categories above.
+- Consider the INTENT and PATTERN of the message, not just individual words.
+- A single mildly unusual word does not make a message unsafe; context matters.
+- Be calibrated: do not over-flag normal conversation, but do not miss genuine threats.
+- A message can contain a flag even if it seems "nice" on the surface — grooming often starts gently.
+
+Remember: output ONLY the JSON object. Nothing else.`;
+
+// ─── ANALYZE FUNCTION ─────────────────────────────────────────────────────────
+
+async function analyze() {
+  const input = document.getElementById('msgInput').value.trim();
+  if (!input) return;
+
+  const btn = document.getElementById('analyzeBtn');
+  const spinner = document.getElementById('spinner');
+  const statusText = document.getElementById('statusText');
+  const resultArea = document.getElementById('resultArea');
+
+  // Reset UI
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  statusText.textContent = 'Analyzing message…';
+  resultArea.style.display = 'none';
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: [
+          { role: "user", content: `Analyze this message:\n\n${input}` }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const rawText = data.content?.map(b => b.text || '').join('') || '';
+
+    // Strip possible markdown fences
+    const clean = rawText.replace(/```json|```/gi, '').trim();
+    const result = JSON.parse(clean);
+
+    displayResult(result, input);
+    statusText.textContent = 'Analysis complete.';
+  } catch (err) {
+    statusText.textContent = 'Error: ' + (err.message || 'Unknown error');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+// ─── DISPLAY RESULT ───────────────────────────────────────────────────────────
+
+function displayResult(result, message) {
+  const isClean = result.verdict === 'Y';
+
+  const resultArea    = document.getElementById('resultArea');
+  const resultBox     = document.getElementById('resultBox');
+  const resultLetter  = document.getElementById('resultLetter');
+  const resultVerdict = document.getElementById('resultVerdict');
+  const resultReason  = document.getElementById('resultReason');
+  const resultFlags   = document.getElementById('resultFlags');
+
+  resultBox.className = 'result-box ' + (isClean ? 'safe' : 'danger');
+  resultLetter.textContent = result.verdict;
+  resultVerdict.textContent = isClean ? 'Clean — No issues detected' : 'Flagged — Potential risk detected';
+  resultReason.textContent = result.reason || '';
+
+  resultFlags.innerHTML = '';
+  if (!isClean && Array.isArray(result.flags) && result.flags.length > 0) {
+    result.flags.forEach(f => {
+      const tag = document.createElement('span');
+      tag.className = 'flag';
+      tag.textContent = f;
+      resultFlags.appendChild(tag);
+    });
+  }
+
+  resultArea.style.display = 'block';
+
+  // Add to log
+  addLogEntry(message, result);
+}
+
+function clearAll() {
+  document.getElementById('msgInput').value = '';
+  document.getElementById('resultArea').style.display = 'none';
+  document.getElementById('statusText').textContent = '';
+}
+
+// ─── LOG FUNCTIONS ────────────────────────────────────────────────────────────
+
+function addLogEntry(message, result) {
+  entryCounter++;
+  const id = entryCounter;
+  const entry = { id, message, verdict: result.verdict, reason: result.reason || '', flags: result.flags || [], correct: null };
+  testLog.unshift(entry); // newest first
+
+  document.getElementById('logSection').style.display = 'block';
+
+  const list = document.getElementById('logList');
+  const el = document.createElement('div');
+  el.className = 'log-entry';
+  el.id = 'log-entry-' + id;
+
+  const isClean = result.verdict === 'Y';
+  const flagsHTML = result.flags && result.flags.length
+    ? `<div class="log-flags-row">${result.flags.map(f => `<span class="log-flag">${f}</span>`).join('')}</div>`
+    : '';
+
+  el.innerHTML = `
+    <div>
+      <div class="log-num">#${id}</div>
+      <div class="log-verdict-badge ${isClean ? 'y' : 'n'}">${result.verdict}</div>
+    </div>
+    <div class="log-body">
+      <div class="log-msg" title="${escHtml(message)}">${escHtml(message)}</div>
+      <div class="log-reason">${escHtml(result.reason || '')}</div>
+      ${flagsHTML}
+    </div>
+    <div class="log-correct-col">
+      <button class="correct-btn" id="correct-${id}" onclick="markCorrect(${id}, true)">✓ Correct</button>
+      <button class="wrong-btn"   id="wrong-${id}"   onclick="markCorrect(${id}, false)">✗ Wrong</button>
+    </div>
+  `;
+
+  list.prepend(el);
+}
+
+function markCorrect(id, isCorrect) {
+  const entry = testLog.find(e => e.id === id);
+  if (entry) entry.correct = isCorrect;
+
+  const el = document.getElementById('log-entry-' + id);
+  const correctBtn = document.getElementById('correct-' + id);
+  const wrongBtn   = document.getElementById('wrong-' + id);
+
+  correctBtn.classList.toggle('active', isCorrect === true);
+  wrongBtn.classList.toggle('active', isCorrect === false);
+  el.classList.toggle('wrong', isCorrect === false);
+}
+
+function clearLog() {
+  testLog.length = 0;
+  entryCounter = 0;
+  document.getElementById('logList').innerHTML = '';
+  document.getElementById('logSection').style.display = 'none';
+}
+
+function copyLog() {
+  if (!testLog.length) return;
+
+  const lines = ['=== CHILD SAFETY DETECTOR — TEST LOG ===', ''];
+
+  // Summary
+  const total   = testLog.length;
+  const marked  = testLog.filter(e => e.correct !== null).length;
+  const correct = testLog.filter(e => e.correct === true).length;
+  const wrong   = testLog.filter(e => e.correct === false).length;
+  lines.push(`Total tests: ${total} | Marked: ${marked} | Correct: ${correct} | Wrong: ${wrong}`);
+  lines.push('');
+
+  // Wrong ones first (most important for training)
+  const wrongEntries = [...testLog].reverse().filter(e => e.correct === false);
+  const correctEntries = [...testLog].reverse().filter(e => e.correct === true);
+  const unmarkedEntries = [...testLog].reverse().filter(e => e.correct === null);
+
+  if (wrongEntries.length) {
+    lines.push('── WRONG DETECTIONS (need prompt update) ──');
+    wrongEntries.forEach(e => formatEntry(e, lines));
+    lines.push('');
+  }
+
+  if (correctEntries.length) {
+    lines.push('── CORRECT DETECTIONS ──');
+    correctEntries.forEach(e => formatEntry(e, lines));
+    lines.push('');
+  }
+
+  if (unmarkedEntries.length) {
+    lines.push('── NOT YET MARKED ──');
+    unmarkedEntries.forEach(e => formatEntry(e, lines));
+    lines.push('');
+  }
+
+  navigator.clipboard.writeText(lines.join('\n')).then(() => showToast());
+}
+
+function formatEntry(e, lines) {
+  lines.push(`#${e.id} | Verdict: ${e.verdict} | Marked: ${e.correct === null ? 'Not marked' : e.correct ? 'CORRECT' : 'WRONG'}`);
+  lines.push(`Message: ${e.message}`);
+  lines.push(`Reason:  ${e.reason}`);
+  if (e.flags.length) lines.push(`Flags:   ${e.flags.join(', ')}`);
+  lines.push('');
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ─── PATCH ANALYZE TO PASS MESSAGE ───────────────────────────────────────────
+// (override displayResult call to include the message)
+
+// Allow Ctrl+Enter to submit
+document.getElementById('msgInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyze();
+});
+</script>
+</body>
+</html>
